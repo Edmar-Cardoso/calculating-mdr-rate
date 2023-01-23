@@ -1,7 +1,9 @@
 import { GeneralContainer, ContainerInput, ContainerForm } from "./style";
-import { loginSchema } from "../../validations/loginValidations";
+import { dataSchema } from "../../validations/DataFormValidations";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useState } from "react";
+import api from "../../services/api";
 
 interface IDataForm {
   amount: number;
@@ -11,16 +13,33 @@ interface IDataForm {
 }
 
 const Form = () => {
-  const formSubmit = async (data: IDataForm) => {};
+  const [valueAmount, setValueAmount] = useState("");
+  const [valueMdr, setValueMdr] = useState("");
+  const [valueDays, setValueDays] = useState<number[]>([]);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<IDataForm>({
-    resolver: yupResolver(loginSchema),
+    resolver: yupResolver(dataSchema),
   });
 
+  const formSubmit = (data: IDataForm) => {
+    data.amount =
+      parseFloat(valueAmount.replace("R$", "").trim().replace(",", ".")) * 100;
+    data.mdr = parseFloat(valueMdr.replace("%", "").trim().replace(",", "."));
+    data.installments = Number(data.installments);
+    data.days = valueDays;
+    if (data.days.length === 0) {
+      delete data.days;
+    }
+
+    api
+      .post("", data)
+      .then((res) => console.log(res))
+      .catch((err) => console.log(err));
+  };
   return (
     <GeneralContainer>
       <ContainerForm>
@@ -30,8 +49,13 @@ const Form = () => {
             <label htmlFor="amount">Informe o valor da venda</label>
             <input
               type="text"
-              placeholder="Ex: 1000,00"
+              placeholder="Ex: R$ 1000,00"
               {...register("amount")}
+              value={valueAmount}
+              onChange={(event) => {
+                const newValue = event.target.value.replace("R$", "");
+                setValueAmount(`R$ ${newValue.trim()}`);
+              }}
             />
             <span>{errors.amount?.message}</span>
           </ContainerInput>
@@ -48,7 +72,16 @@ const Form = () => {
 
           <ContainerInput>
             <label htmlFor="mdr">Informe o percentual de MDR</label>
-            <input type="text" placeholder="Ex: 4" {...register("mdr")} />
+            <input
+              type="text"
+              placeholder="Ex: %4"
+              {...register("mdr")}
+              value={valueMdr}
+              onChange={(event) => {
+                const newValue = event.target.value.replace("%", "");
+                setValueMdr(`%${newValue.trim()}`);
+              }}
+            />
             <span>{errors.mdr?.message}</span>
           </ContainerInput>
 
@@ -58,6 +91,13 @@ const Form = () => {
               type="text"
               placeholder="Ex: 15,30,45"
               {...register("days")}
+              onChange={(event) => {
+                const newValue = event.target.value
+                  .trim()
+                  .split(",")
+                  .map((elem) => Number(elem));
+                setValueDays(newValue);
+              }}
             />
             <span>{errors.days?.message}</span>
           </ContainerInput>
